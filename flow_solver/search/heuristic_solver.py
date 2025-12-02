@@ -188,6 +188,28 @@ def _expand(instance: PuzzleInstance, state: Node) -> List[Tuple[Node, int]]:
 
         child.positions[active] = nb
 
+
+        """
+        one possible Prune
+        #one could be to check a 3x3 area around where the move just took place. Ensure that any "." in that area is either touching at least
+        #two other "." or is touching a head of a pipe
+        """
+
+        """
+        ANother prune
+        check that every connection set of "." can be reached by a head of a pipe.
+        """
+
+        """
+        run bfs from every head of a color and see if it can reach the end.
+        """
+        #!!! Maybe do the pruning here instead
+        #check the 4 corners?
+        # make a separate function to go do the pruning here
+        if prune(instance, child, nr, nc):
+            continue
+
+
         successors.append((child, move_cost))
 
     # return up to 3 child states
@@ -209,7 +231,7 @@ def _heuristic(instance: PuzzleInstance, state: Node) -> int:
             d = _manhattan(pos, goal)
             if d > max_manhattan:
                 max_manhattan = d
-    return blanks + max_manhattan
+    return (blanks * 10) + max_manhattan
 
 
 def _is_goal(instance: PuzzleInstance, state: Node) -> bool:
@@ -248,3 +270,64 @@ def _clone_state(instance: PuzzleInstance, state: Node) -> Node:
         positions=new_positions,
         dirs=new_dirs,
     )
+
+
+""" PRUNING """
+def prune(instance: PuzzleInstance, state: Node, nr: int, nc: int) -> bool:
+    if corner_prune(instance, state, nr, nc):
+        return True
+    return False
+
+def corner_prune(instance: PuzzleInstance, state: Node, nr: int, nc: int) -> bool:
+    """
+    From the new head position (nr, nc), look at the four diagonal cells.
+    For each diagonal cell that is in-bounds and '.', check its 4 neighbors
+    (up, down, left, right). If it does NOT:
+
+      - share a border with at least two other '.' cells, OR
+      - share a border with ANY head of a pipe
+
+    then this state is pruned, return True.
+    """
+    board = state.board
+    grid = board.grid
+    size = board.size
+
+    # set of all head positions (one per color)
+    heads = set(state.positions.values())
+
+    # set of all goal/terminal positions
+    goals = set(instance.goals.values())
+
+    diagonals = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+
+    for dr, dc in diagonals:
+        cr = nr + dr
+        cc = nc + dc
+
+        # must be in bounds
+        if not (0 <= cr < size and 0 <= cc < size):
+            continue
+
+        # only care about empty diagonal cells
+        if grid[cr][cc] != '.':
+            continue
+
+        # check its 4 direct neighbors
+        neighbors = [(cr - 1, cc), (cr + 1, cc), (cr, cc - 1), (cr, cc + 1)]
+        empty_neighbors = 0
+        touches_head = False
+
+        for rr, cc2 in neighbors:
+            if 0 <= rr < size and 0 <= cc2 < size:  # check in bounds
+                if grid[rr][cc2] == '.' or (rr, cc2) in goals:
+                    empty_neighbors += 1
+                if (rr, cc2) in heads:
+                    touches_head = True
+
+        if not (empty_neighbors >= 2 or touches_head):
+            return True  # need to prune
+
+    #do not prune
+    return False
+
