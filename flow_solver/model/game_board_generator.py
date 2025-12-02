@@ -1,4 +1,5 @@
 import random
+from flow_solver.model.board import Board
 
 
 # Warning: I use "Node" and "Terminal" kinda interchangably in the code here, because I can't keep a consistent vocabulary to save my life
@@ -479,3 +480,28 @@ class GameBoard:
             print(" ┆")
         print("└─" + ("─+─" * self._dim) + "─┘") 
 
+    """
+    Converts this GameBoard to a Board object for use with the solver.
+    """
+    def toBoard(self) -> Board:
+        grid = [["." for _ in range(self._dim)] for _ in range(self._dim)]
+        terminals = {}
+        
+        # Mark terminals with their corresponding letters
+        for wireIndex in range(self._numWires):
+            letter = chr(ord('A') + wireIndex)  # A for wire 0, B for wire 1, etc.
+            terminals[letter] = []
+            
+            # Mark start terminal
+            if wireIndex < len(self._starts):
+                startX, startY = self._starts[wireIndex]
+                grid[startY][startX] = letter
+                terminals[letter].append((startY, startX))
+            
+            # Mark end terminal
+            if wireIndex < len(self._ends):
+                endX, endY = self._ends[wireIndex]
+                grid[endY][endX] = letter
+                terminals[letter].append((endY, endX))
+        
+        return Board(size=self._dim, grid=grid, terminals=terminals)

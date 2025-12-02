@@ -66,7 +66,11 @@ class Node:
                 return "┌"
             if down and left:
                 return "┐"
-            return fallback
+
+            if up or down:
+                return "│"
+            if left or right:
+                return "─"
 
         for r in range(size):
             parts: List[str] = []
@@ -83,7 +87,7 @@ class Node:
 
                 # Check if this is a terminal (start or end) - show letter character
                 is_terminal = (r, c) in terminal_sets.get(color, set())
-                if is_terminal or idx == 0:
+                if is_terminal:
                     parts.append(f"{color_code}{ch}{reset}")
                     continue
 
@@ -96,4 +100,33 @@ class Node:
                 ch_pipe = pipe_char(up, down, left, right, color)
                 parts.append(f"{color_code}{ch_pipe}{reset}")
 
-            print(" ".join(parts))
+            # Fill gaps between horizontally connected cells
+            line_segments: List[str] = []
+            for c in range(size):
+                line_segments.append(parts[c])
+
+                if c < size - 1:
+                    gap = " "
+
+                    # Check if cells (r, c) and (r, c+1) are part of the same horizontal pipe
+                    ch_left = grid[r][c]
+                    ch_right = grid[r][c + 1]
+                    idx_left = dirs[r][c]
+                    idx_right = dirs[r][c + 1]
+
+                    if ch_left != "." and ch_left == ch_right:
+                        color = ch_left
+                        color_code = color_map.get(color, "")
+
+                        connected = False
+                        if idx_left > 0 and is_connected(r, c, r, c + 1, color, idx_left):
+                            connected = True
+                        elif idx_right > 0 and is_connected(r, c + 1, r, c, color, idx_right):
+                            connected = True
+
+                        if connected:
+                            gap = f"{color_code}─{reset}"
+
+                    line_segments.append(gap)
+
+            print("".join(line_segments))
