@@ -218,36 +218,20 @@ def _expand(instance: PuzzleInstance, state: Node) -> List[Tuple[Node, int]]:
 
 
 def _heuristic(instance: PuzzleInstance, state: Node) -> int:
+    # Keep the heuristic cheap: remaining blanks plus the worst-case Manhattan
+    # distance from any head to its goal.
     board = state.board
-
     blanks = sum(row.count('.') for row in board.grid)
 
-    # Use the current board (walls) to estimate the true distance each head
-    # still needs to travel. This dominates the earlier Manhattan-only guess.
-    distances = []
+    max_manhattan = 0
     for color in instance.colors:
-        head = state.positions[color]
+        pos = state.positions[color]
         goal = instance.goals[color]
-        if head == goal:
-            continue
-
-        dist = _shortest_path_length(board, head, goal)
-        if dist is None:
-            # No path under current layout; make this state look very poor.
-            return board.size * board.size * 50
-        distances.append(dist)
-
-    if distances:
-        max_distance = max(distances)
-        sum_distance = sum(distances)
-    else:
-        max_distance = 0
-        sum_distance = 0
-
-    # Weight blanks to still encourage filling space, but let actual path
-    # distance drive ordering. The coefficients are tuned empirically to
-    # reward states that shorten multiple colors at once.
-    return (blanks * 6) + (sum_distance * 4) + max_distance
+        if pos != goal:
+            d = _manhattan(pos, goal)
+            if d > max_manhattan:
+                max_manhattan = d
+    return (blanks * 10) + max_manhattan
 
 
 def _is_goal(instance: PuzzleInstance, state: Node) -> bool:
