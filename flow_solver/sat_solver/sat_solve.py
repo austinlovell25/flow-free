@@ -3,9 +3,9 @@ from pysat.solvers import Solver
 from pysat.card import CardEnc
 
 grid = [
-    ["A",".", "."],
+    ["A","B", "C"],
     [".",".", "."],
-    [".",".", "A"],
+    ["A","B", "C"],
 ]
 R, C = len(grid), len(grid[0])
 letters = sorted({c for row in grid for c in row if c != "."})
@@ -58,15 +58,18 @@ for r in range(R):
         for rr,cc in neighbors(r,c):
             if (r,c) < (rr,cc):
                 edges.add(((r,c),(rr,cc)))
+print(edges)
 
 for (u,v) in edges:
     for i in range(len(letters)):
+        print(i)
+        e1 = get_var(u, v, letters[i])
         for j in range(i+1, len(letters)):
-            L1, L2 = letters[i], letters[j]
-            e1 = get_var(u, v, L1)
+            print(j)
+            L2 = letters[j]
             e2 = get_var(u, v, L2)
             cnf.append([-e1, -e2])
-
+print(var_index)
 # ------------------------------------------------------------
 # B. Cell constraints
 # ------------------------------------------------------------
@@ -76,7 +79,15 @@ for r in range(R):
 
         for L in letters:
             T = incident_edges(r,c,L)
-
+            print(r,",",c)
+            print(T)
+            for i in T:
+                print(i)
+                for k, v in var_index.items():
+                    if v == i:
+                        print("is",k)
+                    break
+            print("end")
             if cell == L:
                 # Endpoint of letter L: sum(T) == 1
                 # at least 1
@@ -87,40 +98,17 @@ for r in range(R):
                     for j in range(i+1, len(T)):
                         cnf.append([-T[i], -T[j]])
             elif cell == ".":
-                # Non-endpoint: degree must be 0 or 2
-                # Encode: (sum == 0) OR (sum == 2)
-                # Using auxiliary variable Z meaning “sum==0”.
-                # Z → all edges false
-                # ¬Z → sum(T)==2
                 if len(T) == 0:
                     continue
-                # Build a small encoding:
-                # sum(T)==0 OR sum(T)==2
-                #
-                # We do:
-                # Introduce Z
-                Z = counter
-                counter += 1
-
-                # If Z then all edges false
-                for e in T:
-                    cnf.append([-Z, -e])
-
-                # If not Z then sum(T)==2
-                # sum >= 2
-                print(r,",",c)
-                print(T)
                 vpool = IDPool(start_from=counter)
-                minclause = CardEnc.atleast(T, bound=2, encoding=1, vpool=vpool).clauses
-                print("minclause",minclause)
+                clauses = CardEnc.atmost(T, bound=2, encoding=1, vpool=vpool).clauses
+                #print("clauses",clauses)
                 counter=vpool.top
-                vpool = IDPool(start_from=counter)
-                # sum <= 2
-                maxclause = CardEnc.atmost(T, bound=2, encoding=1, vpool=vpool).clauses
-                counter=vpool.top
-                print("maxclause",maxclause)
-                for clause in minclause + maxclause:
-                    cnf.append([-Z] + clause)
+                for clause in clauses:
+                    cnf.append(clause)
+                for i, ti in enumerate(T):
+                    others = [t for j,t in enumerate(T) if j != i]
+                    cnf.append([-ti] + others)
             else:
                 # Endpoint of some OTHER letter: sum(T)=0 for letter L
                 T = incident_edges(r,c,L)
