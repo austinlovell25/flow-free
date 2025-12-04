@@ -15,6 +15,7 @@ grid = [
 R, C = len(grid), len(grid[0])
 letters = sorted({c for row in grid for c in row if c != "."})
 var_index = {}
+var_index_rev = {}
 counter = 1
 
 def get_var(cell1, cell2, L):
@@ -22,6 +23,7 @@ def get_var(cell1, cell2, L):
     key = tuple(sorted([cell1, cell2])) + (L,)
     if key not in var_index:
         var_index[key] = counter
+        var_index_rev[counter] = key
         counter += 1
     return var_index[key]
 
@@ -53,11 +55,7 @@ def print_last_added_clause():
         var = abs(lit)
         sign = '' if lit > 0 else '¬'
         # suppose var_index_inv maps variable number to meaning
-        key = 0
-        for k, v in var_index.items():
-            if v == var:
-                key = k
-                break
+        key = var_index_rev.get(var, "temp")
         readable.append(f"{sign}{key}")
     print(' OR '.join(readable))
 
@@ -78,90 +76,68 @@ for r in range(R):
         for rr,cc in neighbors(r,c):
             if (r,c) < (rr,cc):
                 edges.add(((r,c),(rr,cc)))
-print(edges)
 
 for (u,v) in edges:
     for i in range(len(letters)):
-        print(i)
         e1 = get_var(u, v, letters[i])
         for j in range(i+1, len(letters)):
-            print(j)
             L2 = letters[j]
             e2 = get_var(u, v, L2)
             cnf.append([-e1, -e2])
-print(var_index)
 # ------------------------------------------------------------
 # B. Cell constraints
 # ------------------------------------------------------------
 for r in range(R):
     for c in range(C):
         cell = grid[r][c]
-
+        print((r,c))
         for L in letters:
             T = incident_edges(r,c,L)
-            print(r,",",c)
-            print(T)
-            for i in T:
-                print(i)
-                for k, v in var_index.items():
-                    if v == i:
-                        print("is",k)
-                    break
-            print("end")
             if cell == L:
                 # Endpoint of letter L: sum(T) == 1
                 # at least 1
                 #print("Incident", T)
                 cnf.append(T[:])
+                print("At least 1, L=L")
+                print_last_added_clause()
                 # at most 1
+                print("At most 1, L=L")
                 for i in range(len(T)):
                     for j in range(i+1, len(T)):
                         cnf.append([-T[i], -T[j]])
+                        print_last_added_clause()
             elif cell == ".":
                 if len(T) == 0:
                     continue
                 vpool = IDPool(start_from=counter)
                 clauses = CardEnc.atmost(T, bound=2, encoding=1, vpool=vpool).clauses
-                #print("clauses",clauses)
                 counter=vpool.top
+                print("At most 2 clause, L=.")
                 for clause in clauses:
                     cnf.append(clause)
-                    print("adding clause here")
                     print_last_added_clause()
+                print("/= 1 clause, L=.")
                 for i, ti in enumerate(T):
                     others = [t for j,t in enumerate(T) if j != i]
                     cnf.append([-ti] + others)
-                    print("adding clause last")
                     print_last_added_clause()
             else:
                 # Endpoint of some OTHER letter: sum(T)=0 for letter L
                 T = incident_edges(r,c,L)
+                print("Exclude clauses, L/=L")
                 for e in T:
                     key = 0
                     for k, v in var_index.items():
                         if v == e:
                             key = k
                             break
-                    #print("Not ", key, " on", r, ",",c)
                     cnf.append([-e])
+                    print_last_added_clause()
 
 
 # ------------------------------------------------------------
 # Solve
 # ------------------------------------------------------------
-'''for clause in cnf.clauses:
-    readable = []
-    for lit in clause:
-        var = abs(lit)
-        sign = '' if lit > 0 else '¬'
-        # suppose var_index_inv maps variable number to meaning
-        key = 0
-        for k, v in var_index.items():
-            if v == var:
-                key = k
-                break
-        readable.append(f"{sign}{key}")
-    print(' OR '.join(readable))'''
 solver = Solver()
 solver.append_formula(cnf)
 sat = solver.solve()
