@@ -3,9 +3,14 @@ from pysat.solvers import Solver
 from pysat.card import CardEnc
 
 grid = [
-    ["A","B", "C"],
-    [".",".", "."],
-    ["A","B", "C"],
+    ["A","B"],
+    [".","."],
+    ["A","B"]
+]
+grid = [
+    ["A","B", 'C'],
+    [".",".", '.'],
+    ["A","B", 'C']
 ]
 R, C = len(grid), len(grid[0])
 letters = sorted({c for row in grid for c in row if c != "."})
@@ -40,6 +45,21 @@ def incident_edges(r,c,L):
     for (rr,cc) in neighbors(r,c):
         out.append(edge_var(r,c,rr,cc,L))
     return out
+
+def print_last_added_clause():
+    clause = cnf.clauses[-1]
+    readable = []
+    for lit in clause:
+        var = abs(lit)
+        sign = '' if lit > 0 else '¬'
+        # suppose var_index_inv maps variable number to meaning
+        key = 0
+        for k, v in var_index.items():
+            if v == var:
+                key = k
+                break
+        readable.append(f"{sign}{key}")
+    print(' OR '.join(readable))
 
 
 # ------------------------------------------------------------
@@ -106,9 +126,13 @@ for r in range(R):
                 counter=vpool.top
                 for clause in clauses:
                     cnf.append(clause)
+                    print("adding clause here")
+                    print_last_added_clause()
                 for i, ti in enumerate(T):
                     others = [t for j,t in enumerate(T) if j != i]
                     cnf.append([-ti] + others)
+                    print("adding clause last")
+                    print_last_added_clause()
             else:
                 # Endpoint of some OTHER letter: sum(T)=0 for letter L
                 T = incident_edges(r,c,L)
@@ -125,7 +149,7 @@ for r in range(R):
 # ------------------------------------------------------------
 # Solve
 # ------------------------------------------------------------
-for clause in cnf.clauses:
+'''for clause in cnf.clauses:
     readable = []
     for lit in clause:
         var = abs(lit)
@@ -137,7 +161,7 @@ for clause in cnf.clauses:
                 key = k
                 break
         readable.append(f"{sign}{key}")
-    print(' OR '.join(readable))
+    print(' OR '.join(readable))'''
 solver = Solver()
 solver.append_formula(cnf)
 sat = solver.solve()
