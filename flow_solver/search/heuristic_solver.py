@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections import deque
 from dataclasses import dataclass, field
 from typing import Dict, List, Optional, Tuple
 import heapq
@@ -219,19 +220,34 @@ def _expand(instance: PuzzleInstance, state: Node) -> List[Tuple[Node, int]]:
 def _heuristic(instance: PuzzleInstance, state: Node) -> int:
     board = state.board
 
-    # h1: remaining blank cells
     blanks = sum(row.count('.') for row in board.grid)
 
-    # h2: max Manhattan distance from any head to its goal
-    max_manhattan = 0
+    # Use the current board (walls) to estimate the true distance each head
+    # still needs to travel. This dominates the earlier Manhattan-only guess.
+    distances = []
     for color in instance.colors:
-        pos = state.positions[color]
+        head = state.positions[color]
         goal = instance.goals[color]
-        if pos != goal:
-            d = _manhattan(pos, goal)
-            if d > max_manhattan:
-                max_manhattan = d
-    return (blanks * 10) + max_manhattan
+        if head == goal:
+            continue
+
+        dist = _shortest_path_length(board, head, goal)
+        if dist is None:
+            # No path under current layout; make this state look very poor.
+            return board.size * board.size * 50
+        distances.append(dist)
+
+    if distances:
+        max_distance = max(distances)
+        sum_distance = sum(distances)
+    else:
+        max_distance = 0
+        sum_distance = 0
+
+    # Weight blanks to still encourage filling space, but let actual path
+    # distance drive ordering. The coefficients are tuned empirically to
+    # reward states that shorten multiple colors at once.
+    return (blanks * 6) + (sum_distance * 4) + max_distance
 
 
 def _is_goal(instance: PuzzleInstance, state: Node) -> bool:
@@ -275,6 +291,10 @@ def _clone_state(instance: PuzzleInstance, state: Node) -> Node:
 """ PRUNING """
 def prune(instance: PuzzleInstance, state: Node, nr: int, nc: int) -> bool:
     if corner_prune(instance, state, nr, nc):
+        return True
+    if unreachable_goal_prune(instance, state):
+        return True
+    if isolated_region_prune(instance, state):
         return True
     return False
 
@@ -330,4 +350,94 @@ def corner_prune(instance: PuzzleInstance, state: Node, nr: int, nc: int) -> boo
 
     #do not prune
     return False
+
+
+def unreachable_goal_prune(instance: PuzzleInstance, state: Node) -> bool:
+    """
+    If any active color has no path to its goal given current walls, prune.
+    Only '.' cells are traversable; the color's goal cell is allowed as the
+    final step.
+    """
+    board = state.board
+    for color in instance.colors:
+        head = state.positions[color]
+        goal = instance.goals[color]
+        if head == goal:
+            continue
+        if _shortest_path_length(board, head, goal) is None:
+            return True
+    return False
+
+
+def isolated_region_prune(instance: PuzzleInstance, state: Node) -> bool:
+    """
+    '.' cells must be reachable from at least one active head. If an empty
+    region is completely fenced off by existing pipes/terminals, the board
+    can never be filled.
+    """
+    board = state.board
+    size = board.size
+
+    active_heads = [
+        state.positions[color]
+        for color in instance.colors
+        if state.positions[color] != instance.goals[color]
+    ]
+
+    # If everything is already connected, nothing to prune here.
+    if not active_heads:
+        return False
+
+    reachable = [[False for _ in range(size)] for _ in range(size)]
+    q: deque[Coord] = deque()
+
+    # Multi-source BFS starting from each active head into '.' cells only.
+    for head in active_heads:
+        hr, hc = head
+        reachable[hr][hc] = True
+        for nb in board.neighbors4(head):
+            if board.get(nb) == '.' and not reachable[nb[0]][nb[1]]:
+                reachable[nb[0]][nb[1]] = True
+                q.append(nb)
+
+    while q:
+        r, c = q.popleft()
+        for nb in board.neighbors4((r, c)):
+            nr, nc = nb
+            if board.get(nb) != '.' or reachable[nr][nc]:
+                continue
+            reachable[nr][nc] = True
+            q.append(nb)
+
+    for r in range(size):
+        for c in range(size):
+            if board.grid[r][c] == '.' and not reachable[r][c]:
+                return True
+
+    return False
+
+
+def _shortest_path_length(board: Board, start: Coord, goal: Coord) -> Optional[int]:
+    """
+    Shortest path length from start to goal using only '.' cells (goal is
+    allowed as the final cell). Returns None if unreachable.
+    """
+    if start == goal:
+        return 0
+
+    q: deque[Tuple[Coord, int]] = deque([(start, 0)])
+    visited = {start}
+
+    while q:
+        (r, c), dist = q.popleft()
+        for nb in board.neighbors4((r, c)):
+            if nb in visited:
+                continue
+            cell = board.get(nb)
+            if cell == '.':
+                visited.add(nb)
+                q.append((nb, dist + 1))
+            elif nb == goal:
+                return dist + 1
+    return None
 
