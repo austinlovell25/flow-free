@@ -111,9 +111,9 @@ def _a_star_search(instance: PuzzleInstance, start_node: Node) -> Tuple[Optional
         g = node.g
 
         # Useful to track and see how it might get stuck!!
-        # if state_count % 1000 == 0:
-        #     print(f"\n--- State {state_count} ---")
-        #     node.pretty_print()
+        if state_count % 1000 == 0:
+            print(f"\n--- State {state_count} ---")
+            node.pretty_print()
 
         if _is_goal(instance, node):
             return node, state_count  # return the full node, not just board/dirs
@@ -272,7 +272,12 @@ def _clone_state(instance: PuzzleInstance, state: Node) -> Node:
     )
 
 
+
+
 """ PRUNING """
+
+
+
 def prune(instance: PuzzleInstance, state: Node, nr: int, nc: int) -> bool:
     if corner_prune(instance, state, nr, nc):
         return True
@@ -297,42 +302,43 @@ def corner_prune(instance: PuzzleInstance, state: Node, nr: int, nc: int) -> boo
     grid = board.grid
     size = board.size
 
-    # set of all head positions (one per color)
+    # set of all current pipe heads
     heads = set(state.positions.values())
 
     # set of all goal/terminal positions
     goals = set(instance.goals.values())
 
-    diagonals = [(-1, -1), (-1, 1), (1, -1), (1, 1)]
+    # For every cell in the board
+    for r in range(size):
+        for c in range(size):
 
-    for dr, dc in diagonals:
-        cr = nr + dr
-        cc = nc + dc
+            # Only inspect empty cells
+            if grid[r][c] != '.':
+                continue
 
-        # must be in bounds
-        if not (0 <= cr < size and 0 <= cc < size):
-            continue
+            # Check the 4 direct neighbors
+            neighbors = [(r - 1, c), (r + 1, c), (r, c - 1), (r, c + 1)]
+            empty_neighbors = 0
+            touches_head = False
 
-        # only care about empty diagonal cells
-        if grid[cr][cc] != '.':
-            continue
+            for rr, cc in neighbors:
+                if 0 <= rr < size and 0 <= cc < size:
 
-        # check its 4 direct neighbors
-        neighbors = [(cr - 1, cc), (cr + 1, cc), (cr, cc - 1), (cr, cc + 1)]
-        empty_neighbors = 0
-        touches_head = False
+                    is_head = (rr, cc) in heads
+                    is_goal = (rr, cc) in goals
 
-        for rr, cc2 in neighbors:
-            if 0 <= rr < size and 0 <= cc2 < size:  # check in bounds
-                if grid[rr][cc2] == '.' or (rr, cc2) in goals:
-                    empty_neighbors += 1
-                if (rr, cc2) in heads:
-                    touches_head = True
+                    if grid[rr][cc] == '.' or (is_goal and not is_head):
+                        empty_neighbors += 1
 
-        if not (empty_neighbors >= 2 or touches_head):
-            return True  # need to prune
+                    # Any adjacency to a head still counts for this condition
+                    if is_head and not is_goal:
+                        touches_head = True
 
-    #do not prune
+            # Prune condition: this empty cell is isolated
+            if not (empty_neighbors >= 2 or touches_head):
+                return True
+
+    # All empty cells passed the check → do not prune
     return False
 
 
