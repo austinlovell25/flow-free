@@ -88,18 +88,19 @@ for r in range(R):
         print("------------------------------------------------------------")
         print((r,c))
         print("------------------------------------------------------------")
-        T = incident_edges(r,c,letters[0])
-        if len(T) == 4:
-            total = []
-            for L in letters:
-                total.extend(incident_edges(r,c,L))
-            vpool = IDPool(start_from=counter+1)
-            clauses = CardEnc.atmost(total, bound=2, encoding=1, vpool=vpool).clauses
-            counter=vpool.top+1
-            print("At most 2 clause, L=., 4 edges")
-            for clause in clauses:
-                    cnf.append(clause)
-                    print_last_added_clause()
+        if cell == ".":
+            T = incident_edges(r,c,letters[0])
+            if len(T) == 4:
+                total = []
+                for L in letters:
+                    total.extend(incident_edges(r,c,L))
+                vpool = IDPool(start_from=counter+1)
+                clauses = CardEnc.atmost(total, bound=2, encoding=1, vpool=vpool).clauses
+                counter=vpool.top+1
+                print("At most 2 clause, L=., 4 edges")
+                for clause in clauses:
+                        cnf.append(clause)
+                        print_last_added_clause()
         for L in letters:
             T = incident_edges(r,c,L)
             readable = []
