@@ -3,14 +3,9 @@ from pysat.solvers import Solver
 from pysat.card import CardEnc
 
 grid = [
-    ["A","B"],
-    [".","."],
-    ["A","B"]
-]
-grid = [
-    ["A","B", 'C'],
-    [".",".", '.'],
-    ["A","B", 'C']
+    [".","B", "."],
+    ["B",".", '.'],
+    ["A",".",'A']
 ]
 R, C = len(grid), len(grid[0])
 letters = sorted({c for row in grid for c in row if c != "."})
@@ -90,9 +85,29 @@ for (u,v) in edges:
 for r in range(R):
     for c in range(C):
         cell = grid[r][c]
+        print("------------------------------------------------------------")
         print((r,c))
+        print("------------------------------------------------------------")
+        T = incident_edges(r,c,letters[0])
+        if len(T) == 4:
+            total = []
+            for L in letters:
+                total.extend(incident_edges(r,c,L))
+            vpool = IDPool(start_from=counter+1)
+            clauses = CardEnc.atmost(total, bound=2, encoding=1, vpool=vpool).clauses
+            counter=vpool.top+1
+            print("At most 2 clause, L=., 4 edges")
+            for clause in clauses:
+                    cnf.append(clause)
+                    print_last_added_clause()
         for L in letters:
             T = incident_edges(r,c,L)
+            readable = []
+            for i in T:
+                readable.append(var_index_rev[i])
+            print("------------------------------------------------------------")
+            print(readable)
+            print("------------------------------------------------------------")
             if cell == L:
                 # Endpoint of letter L: sum(T) == 1
                 # at least 1
@@ -109,9 +124,9 @@ for r in range(R):
             elif cell == ".":
                 if len(T) == 0:
                     continue
-                vpool = IDPool(start_from=counter)
+                vpool = IDPool(start_from=counter+1)
                 clauses = CardEnc.atmost(T, bound=2, encoding=1, vpool=vpool).clauses
-                counter=vpool.top
+                counter=vpool.top+1
                 print("At most 2 clause, L=.")
                 for clause in clauses:
                     cnf.append(clause)
