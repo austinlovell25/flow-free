@@ -1,12 +1,18 @@
 from pysat.formula import CNF, IDPool
 from pysat.solvers import Solver 
 from pysat.card import CardEnc
+from flow_solver.sat_solver.generate_graph import generateBoard
 
-grid = [
+'''grid = [
     [".","B", "."],
     ["B",".", '.'],
     ["A",".",'A']
-]
+]'''
+
+
+# GENERATE GRID
+grid = generateBoard(9, 4)
+
 R, C = len(grid), len(grid[0])
 letters = sorted({c for row in grid for c in row if c != "."})
 var_index = {}
@@ -85,9 +91,9 @@ for (u,v) in edges:
 for r in range(R):
     for c in range(C):
         cell = grid[r][c]
-        print("------------------------------------------------------------")
+        '''print("------------------------------------------------------------")
         print((r,c))
-        print("------------------------------------------------------------")
+        print("------------------------------------------------------------")'''
         if cell == ".":
             T = incident_edges(r,c,letters[0])
             if len(T) == 4:
@@ -97,50 +103,50 @@ for r in range(R):
                 vpool = IDPool(start_from=counter+1)
                 clauses = CardEnc.atmost(total, bound=2, encoding=1, vpool=vpool).clauses
                 counter=vpool.top+1
-                print("At most 2 clause, L=., 4 edges")
+                # print("At most 2 clause, L=., 4 edges")
                 for clause in clauses:
                         cnf.append(clause)
-                        print_last_added_clause()
+                        # print_last_added_clause()
         for L in letters:
             T = incident_edges(r,c,L)
             readable = []
             for i in T:
                 readable.append(var_index_rev[i])
-            print("------------------------------------------------------------")
+            '''print("------------------------------------------------------------")
             print(readable)
-            print("------------------------------------------------------------")
+            print("------------------------------------------------------------")'''
             if cell == L:
                 # Endpoint of letter L: sum(T) == 1
                 # at least 1
                 #print("Incident", T)
                 cnf.append(T[:])
-                print("At least 1, L=L")
-                print_last_added_clause()
+                '''print("At least 1, L=L")
+                print_last_added_clause()'''
                 # at most 1
-                print("At most 1, L=L")
+                # print("At most 1, L=L")
                 for i in range(len(T)):
                     for j in range(i+1, len(T)):
                         cnf.append([-T[i], -T[j]])
-                        print_last_added_clause()
+                        # print_last_added_clause()
             elif cell == ".":
                 if len(T) == 0:
                     continue
                 vpool = IDPool(start_from=counter+1)
                 clauses = CardEnc.atmost(T, bound=2, encoding=1, vpool=vpool).clauses
                 counter=vpool.top+1
-                print("At most 2 clause, L=.")
+                # print("At most 2 clause, L=.")
                 for clause in clauses:
                     cnf.append(clause)
-                    print_last_added_clause()
-                print("/= 1 clause, L=.")
+                    # print_last_added_clause()
+                # print("/= 1 clause, L=.")
                 for i, ti in enumerate(T):
                     others = [t for j,t in enumerate(T) if j != i]
                     cnf.append([-ti] + others)
-                    print_last_added_clause()
+                    # print_last_added_clause()
             else:
                 # Endpoint of some OTHER letter: sum(T)=0 for letter L
                 T = incident_edges(r,c,L)
-                print("Exclude clauses, L/=L")
+                # print("Exclude clauses, L/=L")
                 for e in T:
                     key = 0
                     for k, v in var_index.items():
@@ -148,7 +154,7 @@ for r in range(R):
                             key = k
                             break
                     cnf.append([-e])
-                    print_last_added_clause()
+                    # print_last_added_clause()
 
 
 # ------------------------------------------------------------
@@ -162,7 +168,7 @@ print("SAT:", sat)
 
 if sat:
     model = set(x for x in solver.get_model() if x > 0)
-    print(model)
+    # print(model)
     # Reconstruct solution grid with path markings
     sol = [["." for _ in range(C)] for __ in range(R)]
 

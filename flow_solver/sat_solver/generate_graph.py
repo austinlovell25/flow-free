@@ -12,10 +12,12 @@ class Node:
 
 
 
-def generateBoard():
-    solved, board = GameBoard.newGameBoard(4, 2)
+def generateBoard(dim, num_colors):
+    solved, board = GameBoard.newGameBoard(dim, num_colors)
     board = GameBoard.toBoard(board)
-    return board
+    print("GENERATED BOARD: ")
+    board.pretty_print()
+    return board.grid
     
 
 def board_to_graph(board, colors):
