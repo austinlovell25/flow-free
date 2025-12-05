@@ -111,9 +111,9 @@ def _a_star_search(instance: PuzzleInstance, start_node: Node) -> Tuple[Optional
         g = node.g
 
         # Useful to track and see how it might get stuck!!
-        if state_count % 1000 == 0:
-            print(f"\n--- State {state_count} ---")
-            node.pretty_print()
+        # if state_count % 1000 == 0:
+        #     print(f"\n--- State {state_count} ---")
+        #     node.pretty_print()
 
         if _is_goal(instance, node):
             return node, state_count  # return the full node, not just board/dirs
